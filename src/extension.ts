@@ -4,14 +4,13 @@
  * by TryTokka (https://trytokka.com)
  */
 import * as vscode from 'vscode'
-import { fetchSpend, looksLikeToken } from './api'
+import { fetchSpend, looksLikeToken, normalizeWidgetToken } from './api'
+import { TRYTOKKA_URLS } from './constants'
 import { demoSpendData } from './demo'
 import { Storage } from './storage'
 import { computePsychState } from './psychology'
 import { createStatusBar, updateStatusBar } from './statusBar'
 import { ScoutSidebarProvider } from './sidebarProvider'
-
-const APP_URL = 'https://trytokka.com'
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const storage   = new Storage(context.secrets, context.globalState)
@@ -163,7 +162,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       validateInput(value) {
         if (!value?.trim()) return 'Token cannot be empty'
         if (!looksLikeToken(value)) {
-          return 'That doesn\'t look like a TryTokka widget token (20–256 chars, no spaces).'
+          return 'Paste the 64-character hex Widget Token from TryTokka → Settings → Apps.'
         }
         return undefined
       },
@@ -171,16 +170,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     if (!token) return
 
-    const testResult = await fetchSpend(token.trim())
+    const normalized = normalizeWidgetToken(token)
+    const testResult = await fetchSpend(normalized)
     if (!testResult.ok) {
       await vscode.window.showErrorMessage(
         `Scout: Token check failed — ${testResult.message}`,
         'Try again',
-      ).then(c => { if (c === 'Try again') void pasteToken() })
+        'Open Apps settings',
+      ).then(c => {
+        if (c === 'Try again') void pasteToken()
+        if (c === 'Open Apps settings') openAppsSettings()
+      })
       return
     }
 
-    await storage.setToken(token.trim())
+    await storage.setToken(normalized)
     await vscode.window.showInformationMessage(
       `Scout: Connected! AI spend for this month: $${testResult.data.monthCost.toFixed(2)}`,
     )
@@ -203,15 +207,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
 
     if (choice === 'Create free account →') {
-      await vscode.env.openExternal(vscode.Uri.parse(`${APP_URL}/signup?ref=vscode`))
+      await vscode.env.openExternal(vscode.Uri.parse(TRYTOKKA_URLS.signup))
       await new Promise<void>(r => setTimeout(r, 1500))
     }
 
     await pasteToken()
   }
 
+  /**
+   * Demo uses sample spend only. A saved live token is kept in SecretStorage
+   * so exiting demo (or pasting again) restores live data without re-entry.
+   */
   async function startDemo(): Promise<void> {
-    await storage.clearToken()
     await storage.enableDemoMode()
     // Seed last cost so demo doesn't look like a spike on every refresh
     storage.setLastMonthCost(demoSpendData().monthCost)
@@ -224,7 +231,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   function openDashboard(): void {
-    void vscode.env.openExternal(vscode.Uri.parse(`${APP_URL}/dashboard`))
+    void vscode.env.openExternal(vscode.Uri.parse(TRYTOKKA_URLS.dashboard))
+  }
+
+  function openAppsSettings(): void {
+    void vscode.env.openExternal(vscode.Uri.parse(TRYTOKKA_URLS.appsSettings))
   }
 
   context.subscriptions.push(
@@ -233,19 +244,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('scout.tryDemo', () => startDemo()),
 
     vscode.commands.registerCommand('scout.disconnect', async () => {
+      const inDemo = storage.isDemoMode()
       const confirm = await vscode.window.showWarningMessage(
-        storage.isDemoMode()
+        inDemo
           ? 'Exit Scout demo mode?'
           : 'Disconnect Scout from TryTokka? Spend tracking will stop.',
         { modal: true },
-        storage.isDemoMode() ? 'Exit demo' : 'Disconnect',
+        inDemo ? 'Exit demo' : 'Disconnect',
       )
       if (confirm === 'Disconnect' || confirm === 'Exit demo') {
-        await storage.clearToken()
-        await storage.clearDemoMode()
+        if (inDemo) {
+          // Leaving demo restores any previously saved live token.
+          await storage.clearDemoMode()
+        } else {
+          await storage.clearToken()
+          await storage.clearDemoMode()
+        }
         lastPsychShowCta = false
-        updateStatusBar(statusBar, null, false)
-        sidebarProvider.showDisconnected()
+        await refresh()
         await vscode.window.showInformationMessage(
           confirm === 'Exit demo' ? 'Scout demo ended.' : 'Scout disconnected.',
         )
@@ -259,7 +275,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
 
     vscode.commands.registerCommand('scout.openSignup', () => {
-      void vscode.env.openExternal(vscode.Uri.parse(`${APP_URL}/signup?ref=vscode`))
+      void vscode.env.openExternal(vscode.Uri.parse(TRYTOKKA_URLS.signup))
     }),
 
     vscode.workspace.onDidChangeConfiguration(e => {
@@ -280,7 +296,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Wire webview actions that need host-side handlers
   sidebarProvider.setActionHandler((type) => {
     switch (type) {
-      case 'connect':    void pasteToken(); break
+      case 'connect':    void connectAccount(); break
       case 'tryDemo':    void startDemo(); break
       case 'pasteToken': void pasteToken(); break
       default: break

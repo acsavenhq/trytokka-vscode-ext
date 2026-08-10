@@ -6,6 +6,7 @@
  */
 import * as vscode from 'vscode'
 import type { SpendData } from './api'
+import { TRYTOKKA_URLS } from './constants'
 import type { PsychState } from './psychology'
 import { formatUsd, projectedMonthCost } from './psychology'
 
@@ -58,9 +59,10 @@ export class ScoutSidebarProvider implements vscode.WebviewViewProvider {
         case 'tryDemo':
           this._actionHandler?.(msg.type)
           break
-        case 'openSignup':    void vscode.env.openExternal(vscode.Uri.parse('https://trytokka.com/signup?ref=vscode')); break
-        case 'openDashboard': void vscode.env.openExternal(vscode.Uri.parse('https://trytokka.com/dashboard')); break
-        case 'openPricing':   void vscode.env.openExternal(vscode.Uri.parse('https://trytokka.com/pricing?ref=vscode')); break
+        case 'openSignup':    void vscode.env.openExternal(vscode.Uri.parse(TRYTOKKA_URLS.signup)); break
+        case 'openDashboard': void vscode.env.openExternal(vscode.Uri.parse(TRYTOKKA_URLS.dashboard)); break
+        case 'openPricing':   void vscode.env.openExternal(vscode.Uri.parse(TRYTOKKA_URLS.pricing)); break
+        case 'openApps':      void vscode.env.openExternal(vscode.Uri.parse(TRYTOKKA_URLS.appsSettings)); break
         case 'refresh':       void vscode.commands.executeCommand('scout.refresh'); break
       }
     })
@@ -429,7 +431,7 @@ body {
     </div>
     <div class="step">
       <div class="step-num">2</div>
-      <div class="step-text"><strong>Have an account?</strong> Paste your Widget Token (Settings → Apps)</div>
+      <div class="step-text"><strong>Have an account?</strong> Paste your Widget Token (<a data-action="openApps">Settings → Apps</a>)</div>
     </div>
     <div class="step">
       <div class="step-num">3</div>

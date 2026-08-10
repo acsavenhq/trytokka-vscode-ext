@@ -25,5 +25,8 @@ jobs:
       - name: Type-check / compile
         run: npm run compile
 
+      - name: Unit tests
+        run: npm test
+
       - name: Package (dry-run, verifies vsce can build the .vsix)
-        run: npx @vscode/vsce package --allow-missing-repository -o /tmp/trytokka-vscode-ext.vsix
+        run: npx @vscode/vsce package -o /tmp/trytokka-vscode-ext.vsix

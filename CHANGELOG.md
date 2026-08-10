@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.11 — 2026-07-29
+
+- **Demo mode no longer wipes a saved Widget Token.** Try Demo keeps your live
+  token in SecretStorage; Exit demo restores live spend automatically.
+- **Token validation matches the server** (exactly 64 hex chars); pasted tokens
+  are normalized to lowercase before the API call.
+- **Deep link** to Settings → Apps for token setup; shared `trytokka.com` URL
+  constants for API + CTAs. CI now runs unit tests.
+
 ## 1.0.10 — 2026-07-24
 
 - **Real spend freshness.** The panel now reads the API's `lastSuccessfulSyncAt`

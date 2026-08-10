@@ -1,21 +1,28 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { looksLikeToken, parseSpendPayload } from '../api'
+import { looksLikeToken, normalizeWidgetToken, parseSpendPayload } from '../api'
 
 describe('looksLikeToken', () => {
-  it('accepts 64-char hex widget tokens', () => {
+  it('accepts exactly 64-char hex widget tokens', () => {
     assert.equal(looksLikeToken('a'.repeat(64)), true)
     assert.equal(looksLikeToken('0123456789abcdef'.repeat(4)), true)
+    assert.equal(looksLikeToken('ABCDEF0123456789'.repeat(4)), true)
   })
 
-  it('accepts prefixed tokens', () => {
-    assert.equal(looksLikeToken('tk_live_abcdefghijklmnopqrstuvwxyz'), true)
-  })
-
-  it('rejects short, spaced, or empty values', () => {
+  it('rejects wrong length, spaces, prefixes, or non-hex', () => {
     assert.equal(looksLikeToken(''), false)
     assert.equal(looksLikeToken('short'), false)
+    assert.equal(looksLikeToken('a'.repeat(63)), false)
+    assert.equal(looksLikeToken('a'.repeat(65)), false)
     assert.equal(looksLikeToken('token with spaces...............'), false)
+    assert.equal(looksLikeToken('tk_live_abcdefghijklmnopqrstuvwxyz'), false)
+    assert.equal(looksLikeToken('g'.repeat(64)), false)
+  })
+})
+
+describe('normalizeWidgetToken', () => {
+  it('trims and lowercases', () => {
+    assert.equal(normalizeWidgetToken('  ABCD  '), 'abcd')
   })
 })
 

@@ -7,7 +7,8 @@
  * No proxy, no code changes — read-only billing data only.
  */
 
-const API_BASE = 'https://trytokka.com'
+import { TRYTOKKA_URLS } from './constants'
+
 const TIMEOUT_MS = 10_000
 
 export interface SpendData {
@@ -71,7 +72,7 @@ export async function fetchSpend(token: string): Promise<FetchResult> {
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
   try {
-    const res = await fetch(`${API_BASE}/api/widget-summary`, {
+    const res = await fetch(TRYTOKKA_URLS.widgetSummary, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -120,16 +121,15 @@ export async function fetchSpend(token: string): Promise<FetchResult> {
 }
 
 /**
- * Soft token shape check before network.
- * Production tokens are typically 64-char hex; placeholder tokens may use a prefix.
+ * Client-side token shape check before network.
+ * Matches server WidgetTokenSchema: exactly 64 lowercase hex characters
+ * (case-insensitive here — callers should normalize with normalizeWidgetToken).
  */
 export function looksLikeToken(value: string): boolean {
-  const t = value.trim()
-  if (t.length < 20 || t.length > 256) return false
-  if (/\s/.test(t)) return false
-  // Prefer hex (current TryTokka widget tokens) or obvious prefixed tokens
-  if (/^[a-f0-9]{32,128}$/i.test(t)) return true
-  if (/^tk[_-][a-z0-9_-]{16,}$/i.test(t)) return true
-  // Allow other opaque tokens that look secret-like (no spaces, long enough)
-  return /^[\w.-]{20,}$/.test(t)
+  return /^[a-f0-9]{64}$/i.test(value.trim())
+}
+
+/** Normalize a pasted widget token for storage / API (trim + lowercase hex). */
+export function normalizeWidgetToken(value: string): string {
+  return value.trim().toLowerCase()
 }
