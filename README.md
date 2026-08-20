@@ -124,7 +124,7 @@ Scout gives you the number. [TryTokka](https://trytokka.com) gives you:
 ## Links
 
 - [TryTokka](https://trytokka.com) — the full dashboard
-- [GitHub](https://github.com/SamsonPG/trytokka-vscode-ext) — source code
+- [GitHub](https://github.com/acsavenhq/trytokka-vscode-ext) — source code
 - [Support](https://trytokka.com/support) — get help
 - [Security](https://trytokka.com/security) — how we protect your keys
 

@@ -11,11 +11,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/SamsonPG/trytokka-vscode-ext"
+    "url": "https://github.com/acsavenhq/trytokka-vscode-ext"
   },
   "homepage": "https://trytokka.com",
   "bugs": {
-    "url": "https://github.com/SamsonPG/trytokka-vscode-ext/issues",
+    "url": "https://github.com/acsavenhq/trytokka-vscode-ext/issues",
     "email": "support@trytokka.com"
   },
   "license": "MIT",
