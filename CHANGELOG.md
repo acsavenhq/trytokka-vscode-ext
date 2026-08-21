@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0 — 2026-08-21
+
+- **Your seat on a shared workspace.** If you hold a viewer or member seat, Scout
+  now says so in an amber read-only note, matching the dashboard's treatment. The
+  advice changes with it: the panel used to say "Set an alert so Scout emails you
+  before the bill arrives", but only the workspace owner can — a viewer followed
+  that to the dashboard and found Save disabled. It now says "ask your workspace
+  owner" to the people who need to hear it. Spend figures are still the
+  workspace's, read from the owner, so a team sees the same numbers.
+- **Notifications.** Alerts firing, syncs failing and recovering, and plan changes
+  now appear in the sidebar and as VS Code notifications — warnings for alerts and
+  sync failures, information for the rest. Each is announced once, so opening VS
+  Code after a quiet week does not bury you in a backlog. Turn them off with
+  `scout.showNotifications`.
+- Notification titles are escaped before rendering. On an older API payload the
+  seat falls back to owner, so nothing changes for people whose server predates
+  these fields.
+
 ## 1.0.11 — 2026-07-29
 
 - **Demo mode no longer wipes a saved Widget Token.** Try Demo keeps your live
