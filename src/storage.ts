@@ -15,6 +15,7 @@ const CTA_DAY_KEY       = 'scout.ctaCountedDay'
 const SPIKE_ACK_KEY     = 'scout.lastSpikeAckedCost'
 const SIDEBAR_OPEN_KEY  = 'scout.sidebarAutoOpened'
 const DEMO_KEY          = 'scout.demoMode'
+const NOTIF_SEEN_KEY    = 'scout.seenNotificationIds'
 
 export class Storage {
   constructor(
@@ -99,6 +100,32 @@ export class Storage {
 
   ackSpike(cost: number): void {
     void this.state.update(SPIKE_ACK_KEY, cost)
+  }
+
+  /**
+   * Notification ids already surfaced as a VS Code toast.
+   *
+   * Kept so a poll every few minutes does not re-announce the same alert forever. The
+   * server has no per-client "delivered" concept and should not grow one for this — the
+   * dashboard bell and the extension are two independent readers of the same list.
+   */
+  getSeenNotificationIds(): string[] {
+    const raw = this.state.get<unknown>(NOTIF_SEEN_KEY)
+    return Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : []
+  }
+
+  /**
+   * Records ids as announced, keeping only the most recent 100.
+   *
+   * The cap matters: this lives in workspace state that is never garbage-collected, and an
+   * unbounded list would grow for the life of the install. 100 is far more than the ten the
+   * API returns, so an id can never fall out of the window while still being returned —
+   * which would make an old notification pop up again as if it were new.
+   */
+  async markNotificationsSeen(ids: string[]): Promise<void> {
+    if (ids.length === 0) return
+    const merged = [...new Set([...ids, ...this.getSeenNotificationIds()])].slice(0, 100)
+    await this.state.update(NOTIF_SEEN_KEY, merged)
   }
 
   hasAutoOpenedSidebar(): boolean {

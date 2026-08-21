@@ -5,6 +5,7 @@
  */
 import * as vscode from 'vscode'
 import { fetchSpend, looksLikeToken, normalizeWidgetToken } from './api'
+import type { Notification } from './api'
 import { TRYTOKKA_URLS } from './constants'
 import { demoSpendData } from './demo'
 import { Storage } from './storage'
@@ -50,6 +51,44 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   sidebarProvider.onDidChangeVisibility(() => {
     maybeRecordCta()
   })
+
+  /**
+   * Surfaces genuinely new notifications as VS Code toasts, then remembers them.
+   *
+   * WHY NOT SHOW EVERY UNREAD ONE: "unread" means unread in the DASHBOARD. Someone who has
+   * not opened the bell in a week would be greeted by a week of toasts on the next poll,
+   * which is how a person learns to dismiss this extension without reading it. Announced
+   * here means announced here; the dashboard's read state is a different question.
+   *
+   * At most three fire at once for the same reason. The rest stay visible in the sidebar,
+   * which is the surface built for a list.
+   */
+  async function announceNewNotifications(notifications: Notification[]): Promise<void> {
+    if (!scoutConfig().get<boolean>('showNotifications', true)) return
+    if (!Array.isArray(notifications) || notifications.length === 0) return
+
+    const seen = new Set(storage.getSeenNotificationIds())
+    const fresh = notifications.filter((n) => !n.read && !seen.has(n.id))
+
+    // Mark ALL of them seen, including any beyond the cap we chose not to show. Marking only
+    // the shown ones would make the remainder pop up on the next poll as if they were new.
+    await storage.markNotificationsSeen(notifications.map((n) => n.id))
+    if (fresh.length === 0) return
+
+    for (const n of fresh.slice(0, 3)) {
+      // A failed sync or a fired alert is something to act on; the rest are FYI. Using
+      // warning for everything would make the ones that matter indistinguishable.
+      const isUrgent = n.type === 'alert_fired' || n.type === 'sync_failed'
+      const message = n.body ? `Scout: ${n.title} — ${n.body}` : `Scout: ${n.title}`
+      // Called directly rather than through a stored reference: these are overloaded, and
+      // going via `.call` resolves to the MessageOptions signature, which silently turns
+      // the action label into an options object and loses the button.
+      const choice = isUrgent
+        ? await vscode.window.showWarningMessage(message, 'Open Dashboard')
+        : await vscode.window.showInformationMessage(message, 'Open Dashboard')
+      if (choice === 'Open Dashboard') openDashboard()
+    }
+  }
 
   async function refresh(): Promise<void> {
     if (refreshInFlight) return
@@ -128,6 +167,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         if (c === 'Open Dashboard') openDashboard()
         if (c === 'Open Dashboard' || c === 'Dismiss') storage.ackSpike(data.monthCost)
       }
+
+      await announceNewNotifications(data.notifications)
 
       storage.setLastMonthCost(data.monthCost)
       maybeRecordCta()

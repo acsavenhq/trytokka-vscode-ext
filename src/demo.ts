@@ -25,5 +25,26 @@ export function demoSpendData(now = new Date()): SpendData {
     alertStatus: monthCost > 40 ? 'warning' : 'safe',
     lastUpdated: now.toISOString(),
     lastSuccessfulSyncAt: now.toISOString(),
+    // Demo mode shows the product at its best: an owner who can act on what they see.
+    // A read-only demo would advertise a restriction most people will never hit.
+    seat: { role: 'owner', canEdit: true },
+    notifications: [
+      {
+        id: 'demo-1',
+        type: 'alert_fired',
+        title: 'OpenAI spend crossed $40 this month',
+        body: 'Scout will keep watching and email you if it climbs further.',
+        read: false,
+        createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'demo-2',
+        type: 'sync_recovered',
+        title: 'Anthropic sync recovered',
+        body: null,
+        read: true,
+        createdAt: new Date(now.getTime() - 26 * 60 * 60 * 1000).toISOString(),
+      },
+    ],
   }
 }

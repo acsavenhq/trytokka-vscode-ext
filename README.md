@@ -24,6 +24,10 @@ Click it. Get the full breakdown:
 - **Top provider** — which API is driving the bill
 - **Days left** — how much runway before month-end
 - **Spike alerts** — popup the moment your spend jumps unexpectedly
+- **Notifications** — alerts firing, syncs failing and recovering, plan changes: the same
+  events as the dashboard bell, in the sidebar and as VS Code notifications
+- **Your seat** — on a shared workspace, Scout says up front whether you can change things,
+  instead of sending you to the dashboard to find out
 
 **New:** **Scout: Try Demo** shows sample spend instantly — no account required — so you feel the habit before you connect.
 
@@ -63,6 +67,29 @@ Full security details: [trytokka.com/security](https://trytokka.com/security)
 
 ---
 
+## Shared workspaces
+
+If you hold a **viewer** or **member** seat on someone else's TryTokka workspace, Scout shows
+an amber read-only note and adjusts its advice — "ask your workspace owner to set an alert"
+rather than "set an alert", because only the owner can.
+
+The spend figures are the workspace's, read from the owner, so everyone on the team sees the
+same numbers. The seat describes you.
+
+---
+
+## Notifications
+
+Scout surfaces the same events as the dashboard bell: an alert firing, a provider sync
+failing or recovering, a plan change. They appear in the sidebar, and new ones also arrive as
+VS Code notifications — warnings for alerts and sync failures, information for the rest.
+
+Each is announced **once**. Scout does not replay everything unread in your dashboard, so
+opening VS Code after a quiet week does not bury you. Set `scout.showNotifications` to
+`false` to keep them in the sidebar only.
+
+---
+
 ## Status bar colours
 
 | Colour | Meaning |
@@ -80,6 +107,7 @@ Full security details: [trytokka.com/security](https://trytokka.com/security)
 | `scout.refreshIntervalMinutes` | `30` | How often to fetch fresh data |
 | `scout.showInStatusBar` | `true` | Show/hide the status bar item |
 | `scout.localAlertThresholdUsd` | `0` | Local VS Code alert (0 = off). For email alerts, set them in TryTokka. |
+| `scout.showNotifications` | `true` | Show a VS Code notification for new alerts, sync failures and plan changes. Off keeps them in the sidebar only. |
 
 ---
 

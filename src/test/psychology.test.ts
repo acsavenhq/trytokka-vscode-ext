@@ -24,6 +24,10 @@ const baseSpend = (over: Partial<SpendData> = {}): SpendData => ({
   alertStatus: 'safe',
   lastUpdated: new Date().toISOString(),
   lastSuccessfulSyncAt: new Date().toISOString(),
+  // Owner by default: these tests are about spend psychology, not permissions, and an
+  // owner is the case where every CTA is offered — the widest surface to assert against.
+  seat: { role: 'owner', canEdit: true },
+  notifications: [],
   ...over,
 })
 

@@ -125,6 +125,8 @@ export class ScoutSidebarProvider implements vscode.WebviewViewProvider {
         alertStatus:  data.alertStatus,
         lastUpdated:  data.lastUpdated,
         lastSuccessfulSyncAt: data.lastSuccessfulSyncAt,
+        seat: data.seat,
+        notifications: data.notifications,
       },
       psych: {
         spendPhrase: state.spendPhrase,
@@ -289,6 +291,44 @@ body {
   margin-bottom: 4px;
 }
 .card.warning .spend-amount { color: var(--scout-amber); }
+
+/* Seat banner — amber, matching the dashboard's read-only treatment so the two
+   surfaces do not describe the same restriction in two different visual languages. */
+.seat-banner {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0 0 10px; padding: 7px 9px;
+  border: 1px solid rgba(251,191,36,0.28);
+  border-left: 3px solid var(--scout-amber);
+  border-radius: 6px;
+  background: rgba(251,191,36,0.10);
+  font-size: 11px; line-height: 1.45; color: var(--text);
+}
+.seat-banner[hidden] { display: none; }
+.seat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--scout-amber); flex: 0 0 auto; }
+
+/* Notifications */
+.notif-section { margin-top: 12px; }
+.notif-section[hidden] { display: none; }
+.notif-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 6px;
+}
+.notif-badge {
+  background: var(--scout-amber); color: #1a1400;
+  border-radius: 8px; padding: 0 5px; font-size: 9px; font-weight: 700;
+}
+.notif-badge[hidden] { display: none; }
+.notif-item {
+  display: flex; gap: 7px; padding: 6px 0;
+  border-top: 1px solid var(--rim); font-size: 11px; line-height: 1.4;
+}
+.notif-item:first-child { border-top: none; }
+.notif-item.unread .notif-title { font-weight: 600; color: var(--text); }
+.notif-title { color: var(--text-muted); }
+.notif-body { color: var(--text-faint); font-size: 10px; margin-top: 1px; }
+.notif-when { color: var(--text-faint); font-size: 10px; white-space: nowrap; margin-left: auto; }
+.notif-icon { flex: 0 0 auto; }
 .card.danger  .spend-amount { color: var(--scout-deep); }
 
 .spend-sub {
@@ -472,6 +512,18 @@ body {
     </div>
   </div>
 
+  <!--
+    Read-only banner. Hidden for owners, who are the common case.
+
+    The extension has no button the server would refuse, so this is not a disabled control —
+    it is context. Without it a viewer reads "Set an alert so Scout emails you", follows it
+    to the dashboard, and only there discovers they cannot. Saying so here costs one line.
+  -->
+  <div class="seat-banner" id="seatBanner" role="status" hidden>
+    <span class="seat-dot"></span>
+    <span id="seatText"></span>
+  </div>
+
   <!-- Spend card — psychological anchor (big number first) -->
   <div class="card" id="spendCard">
     <div class="spend-label" id="spendLabel">THIS MONTH</div>
@@ -542,6 +594,15 @@ body {
     </button>
   </div>
 
+  <!-- Notifications — the same events the dashboard bell shows, for the token holder -->
+  <div class="notif-section" id="notifSection" hidden>
+    <div class="notif-head">
+      <span id="notifTitle">Recent</span>
+      <span class="notif-badge" id="notifBadge" hidden></span>
+    </div>
+    <div id="notifList"></div>
+  </div>
+
   <div class="updated" id="lastUpdated"></div>
 
   <div class="footer">
@@ -555,6 +616,34 @@ body {
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi()
 function send(type) { vscode.postMessage({ type }) }
+
+/** One glyph per notification kind. Emoji, so no icon font ships with the extension. */
+const NOTIF_ICON = {
+  alert_fired: '\u26A0\uFE0F',
+  sync_failed: '\u274C',
+  sync_recovered: '\u2705',
+  plan_changed: '\u{1F4B3}',
+  system: '\u2139\uFE0F',
+}
+
+/**
+ * "2h ago" — coarse on purpose.
+ *
+ * The response is cached for 60s server-side and this panel polls every five minutes, so a
+ * to-the-second timestamp would be precise about a number that is not. Minutes is the
+ * finest unit that is honest here.
+ */
+function relativeTime(iso) {
+  const then = new Date(iso).getTime()
+  if (!Number.isFinite(then)) return ''
+  const mins = Math.max(0, Math.round((Date.now() - then) / 60000))
+  if (mins < 1) return 'just now'
+  if (mins < 60) return mins + 'm ago'
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return hours + 'h ago'
+  const days = Math.round(hours / 24)
+  return days + 'd ago'
+}
 
 // The webview CSP (script-src 'nonce-...') blocks inline onclick handlers —
 // they carry no nonce, so they silently never fire. Wire every clickable
@@ -626,11 +715,64 @@ function render(data, psych, demoMode) {
   }
 
   // CTA
+  // Seat. Owners see nothing — the banner is for the minority who cannot act.
+  const seat = data.seat || { role: 'owner', canEdit: true }
+  const seatBanner = document.getElementById('seatBanner')
+  if (seat.canEdit) {
+    seatBanner.hidden = true
+  } else {
+    seatBanner.hidden = false
+    document.getElementById('seatText').textContent =
+      seat.role === 'viewer'
+        ? 'Read-only access. You can see this workspace’s spend, but not change anything.'
+        : 'Limited access. You can see spend; only the workspace owner can change keys or alerts.'
+  }
+
   const cta = document.getElementById('ctaCard')
   cta.className = 'cta-card' + (psych.showCta ? ' show' : '')
   if (psych.showCta) {
-    document.getElementById('ctaReason').textContent = psych.ctaReason +
-      '. Set an alert so Scout emails you before the bill arrives.'
+    /*
+      Never tell someone to do something the server will refuse.
+
+      This always read "Set an alert so Scout emails you before the bill arrives", but
+      POST /api/alerts is owner-only. A viewer followed that instruction to the dashboard
+      and found the Save button disabled — the same dead-control experience the web app
+      had, delivered as advice instead of a button.
+    */
+    const advice = seat.canEdit
+      ? '. Set an alert so Scout emails you before the bill arrives.'
+      : '. Ask your workspace owner to set an alert so Scout emails before the bill arrives.'
+    document.getElementById('ctaReason').textContent = psych.ctaReason + advice
+  }
+
+  // Notifications — the same events the dashboard bell shows.
+  const notifs = Array.isArray(data.notifications) ? data.notifications : []
+  const notifSection = document.getElementById('notifSection')
+  if (notifs.length === 0) {
+    notifSection.hidden = true
+  } else {
+    notifSection.hidden = false
+    const unread = notifs.filter(function (n) { return !n.read }).length
+    const badge = document.getElementById('notifBadge')
+    badge.hidden = unread === 0
+    badge.textContent = String(unread)
+    document.getElementById('notifList').innerHTML = notifs.slice(0, 5).map(function (n) {
+      // textContent-equivalent escaping: these strings come from the server, but a
+      // notification title can contain anything a provider name can, and innerHTML here
+      // would make that a script-injection surface inside the webview.
+      const esc = function (v) {
+        return String(v).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        })
+      }
+      const icon = NOTIF_ICON[n.type] || '•'
+      const body = n.body ? '<div class="notif-body">' + esc(n.body) + '</div>' : ''
+      return '<div class="notif-item' + (n.read ? '' : ' unread') + '">' +
+        '<span class="notif-icon">' + icon + '</span>' +
+        '<div><div class="notif-title">' + esc(n.title) + '</div>' + body + '</div>' +
+        '<span class="notif-when">' + esc(relativeTime(n.createdAt)) + '</span>' +
+        '</div>'
+    }).join('')
   }
 
   // Freshness. Prefer lastSuccessfulSyncAt (the real provider-sync time) —

@@ -1,8 +1,8 @@
 {
   "name": "scout-ai-spend-tracker",
-  "displayName": "Scout — AI Spend Tracker",
+  "displayName": "Scout \u2014 AI Spend Tracker",
   "description": "See exactly what AI APIs are costing you, right in VS Code. No proxy. No code changes. Tracks OpenAI, Anthropic, Gemini, OpenRouter, Azure, Bedrock, Cursor in one number. By TryTokka.",
-  "version": "1.0.11",
+  "version": "1.1.0",
   "publisher": "trytokka",
   "icon": "media/icon.png",
   "galleryBanner": {
@@ -19,8 +19,14 @@
     "email": "support@trytokka.com"
   },
   "license": "MIT",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Machine Learning", "Visualization", "Data Science"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Visualization",
+    "Data Science"
+  ],
   "keywords": [
     "AI cost tracker",
     "OpenAI cost",
@@ -38,7 +44,9 @@
     "token usage",
     "AI budget"
   ],
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -70,7 +78,7 @@
       },
       {
         "command": "scout.openSignup",
-        "title": "Scout: Start Free — trytokka.com"
+        "title": "Scout: Start Free \u2014 trytokka.com"
       }
     ],
     "icons": {
@@ -86,7 +94,7 @@
       "activitybar": [
         {
           "id": "scout-sidebar",
-          "title": "Scout — AI Spend",
+          "title": "Scout \u2014 AI Spend",
           "icon": "media/gecko.svg"
         }
       ]
@@ -104,31 +112,37 @@
       {
         "id": "scout.getStarted",
         "title": "Get started with Scout",
-        "description": "See AI API spend in your VS Code status bar — demo in seconds, or connect TryTokka for live numbers.",
+        "description": "See AI API spend in your VS Code status bar \u2014 demo in seconds, or connect TryTokka for live numbers.",
         "steps": [
           {
             "id": "scout.walk.open",
             "title": "Open the Scout panel",
             "description": "Click the Scout gecko in the Activity Bar, or run **Scout: Open Spend Panel**.\n\n[Open Scout](command:scout.openPanel)",
-            "media": { "markdown": "media/walkthrough/open.md" }
+            "media": {
+              "markdown": "media/walkthrough/open.md"
+            }
           },
           {
             "id": "scout.walk.statusbar",
             "title": "Watch the status bar",
-            "description": "Once connected or in demo mode, your month spend lives on the right status bar — every time you code.\n\n[Try demo](command:scout.tryDemo)",
-            "media": { "markdown": "media/walkthrough/statusbar.md" }
+            "description": "Once connected or in demo mode, your month spend lives on the right status bar \u2014 every time you code.\n\n[Try demo](command:scout.tryDemo)",
+            "media": {
+              "markdown": "media/walkthrough/statusbar.md"
+            }
           },
           {
             "id": "scout.walk.connect",
             "title": "Connect or try demo",
-            "description": "Paste a Widget Token for live spend, try sample data first, or create a free TryTokka account.\n\n[Paste token](command:scout.pasteToken) · [Try demo](command:scout.tryDemo) · [Start free](command:scout.openSignup)",
-            "media": { "markdown": "media/walkthrough/connect.md" }
+            "description": "Paste a Widget Token for live spend, try sample data first, or create a free TryTokka account.\n\n[Paste token](command:scout.pasteToken) \u00b7 [Try demo](command:scout.tryDemo) \u00b7 [Start free](command:scout.openSignup)",
+            "media": {
+              "markdown": "media/walkthrough/connect.md"
+            }
           }
         ]
       }
     ],
     "configuration": {
-      "title": "Scout — AI Spend Tracker",
+      "title": "Scout \u2014 AI Spend Tracker",
       "properties": {
         "scout.refreshIntervalMinutes": {
           "type": "number",
@@ -147,6 +161,11 @@
           "default": 0,
           "minimum": 0,
           "description": "Flash the status bar red when monthly spend exceeds this (0 = off). Set email alerts in TryTokka."
+        },
+        "scout.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a VS Code notification when a new TryTokka alert, sync failure or plan change arrives. Turn this off to keep notifications in the Scout sidebar only."
         }
       }
     },

@@ -73,3 +73,78 @@ describe('parseSpendPayload', () => {
     assert.equal(parseSpendPayload('x'), null)
   })
 })
+
+describe('parseSpendPayload — seat', () => {
+  const base = { todayCost: 1, monthCost: 2, totalCost: 3 }
+
+  it('reads a viewer seat', () => {
+    const d = parseSpendPayload({ ...base, seat: { role: 'viewer', canEdit: false } })
+    assert.equal(d?.seat.role, 'viewer')
+    assert.equal(d?.seat.canEdit, false)
+  })
+
+  it('defaults to owner when the server does not send a seat', () => {
+    /*
+      Backward compatibility, and the direction of the default matters.
+
+      This extension auto-updates independently of the TryTokka deployment it talks to, so
+      it will meet servers that predate the field. Defaulting to "cannot edit" would tell a
+      real owner they are read-only — a worse error than the one the field prevents, and one
+      they cannot dismiss. The server is the actual guard; this only decides what we SAY.
+    */
+    const d = parseSpendPayload(base)
+    assert.equal(d?.seat.role, 'owner')
+    assert.equal(d?.seat.canEdit, true)
+  })
+
+  it('ignores a role it does not recognise rather than trusting it', () => {
+    const d = parseSpendPayload({ ...base, seat: { role: 'superadmin', canEdit: false } })
+    assert.equal(d?.seat.role, 'owner', 'unknown role falls back')
+    assert.equal(d?.seat.canEdit, false, 'but an explicit canEdit is still honoured')
+  })
+
+  it('derives canEdit from the role when only the role is sent', () => {
+    const d = parseSpendPayload({ ...base, seat: { role: 'member' } })
+    assert.equal(d?.seat.canEdit, false)
+  })
+})
+
+describe('parseSpendPayload — notifications', () => {
+  const base = { todayCost: 1, monthCost: 2, totalCost: 3 }
+
+  it('parses a well-formed list', () => {
+    const d = parseSpendPayload({
+      ...base,
+      notifications: [
+        { id: 'n1', type: 'alert_fired', title: 'Spend crossed $40', body: 'x', read: false, createdAt: '2026-08-21T00:00:00Z' },
+      ],
+    })
+    assert.equal(d?.notifications.length, 1)
+    assert.equal(d?.notifications[0].type, 'alert_fired')
+    assert.equal(d?.notifications[0].read, false)
+  })
+
+  it('is an empty list when the server does not send the field', () => {
+    assert.deepEqual(parseSpendPayload(base)?.notifications, [])
+  })
+
+  it('drops malformed entries instead of rendering undefined', () => {
+    // A single bad row must not cost the user the good ones, and must never reach the
+    // webview as `undefined` — that renders as the literal text "undefined".
+    const d = parseSpendPayload({
+      ...base,
+      notifications: [null, 'nope', { type: 'system' }, { id: 'ok', title: 'Fine' }],
+    })
+    assert.equal(d?.notifications.length, 1)
+    assert.equal(d?.notifications[0].id, 'ok')
+  })
+
+  it('falls back to system for an unrecognised type', () => {
+    const d = parseSpendPayload({ ...base, notifications: [{ id: 'a', title: 't', type: 'brand_new' }] })
+    assert.equal(d?.notifications[0].type, 'system')
+  })
+
+  it('survives notifications being the wrong shape entirely', () => {
+    assert.deepEqual(parseSpendPayload({ ...base, notifications: 'oops' })?.notifications, [])
+  })
+})

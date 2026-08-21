@@ -11,6 +11,22 @@ import { TRYTOKKA_URLS } from './constants'
 
 const TIMEOUT_MS = 10_000
 
+/** What the token holder may do. Mirrors what TryTokka's write endpoints enforce. */
+export interface Seat {
+  role: 'owner' | 'member' | 'viewer'
+  canEdit: boolean
+}
+
+/** A notification for the token holder — personal, never the workspace owner's. */
+export interface Notification {
+  id: string
+  type: 'alert_fired' | 'sync_failed' | 'sync_recovered' | 'plan_changed' | 'system'
+  title: string
+  body: string | null
+  read: boolean
+  createdAt: string
+}
+
 export interface SpendData {
   todayCost: number
   monthCost: number
@@ -19,6 +35,15 @@ export interface SpendData {
   alertStatus: 'safe' | 'warning' | 'critical'
   lastUpdated: string      // ISO timestamp — response generation time (always ~now)
   lastSuccessfulSyncAt: string | null // ISO timestamp of the last real provider sync; null before the first sync
+  /**
+   * The token holder's seat.
+   *
+   * Spend above is the WORKSPACE's (read from the owner, so a member sees shared numbers).
+   * This is about the person holding the token, which is who presses the buttons.
+   */
+  seat: Seat
+  /** Recent notifications, newest first. Empty when the server predates this field. */
+  notifications: Notification[]
 }
 
 export type FetchResult =
@@ -52,6 +77,46 @@ export function parseSpendPayload(raw: unknown): SpendData | null {
       ? o.lastSuccessfulSyncAt
       : null
 
+  /*
+    Seat defaults to owner when the field is absent.
+
+    An older TryTokka deployment does not send `seat`, and this extension auto-updates
+    independently of the server it talks to. Defaulting to "can edit" keeps the existing
+    wording for those users rather than telling an actual owner they are read-only, which
+    would be a worse error than the one this field exists to prevent. The server is the real
+    guard either way — this only decides what we SAY.
+  */
+  const rawSeat = o.seat as Record<string, unknown> | undefined
+  const roleRaw = rawSeat?.role
+  const role: Seat['role'] =
+    roleRaw === 'viewer' || roleRaw === 'member' || roleRaw === 'owner' ? roleRaw : 'owner'
+  const seat: Seat = {
+    role,
+    canEdit: typeof rawSeat?.canEdit === 'boolean' ? rawSeat.canEdit : role === 'owner',
+  }
+
+  const notifications = Array.isArray(o.notifications)
+    ? (o.notifications as unknown[]).flatMap((n) => {
+        if (!n || typeof n !== 'object') return []
+        const r = n as Record<string, unknown>
+        if (typeof r.id !== 'string' || typeof r.title !== 'string') return []
+        const t = r.type
+        const type: Notification['type'] =
+          t === 'alert_fired' || t === 'sync_failed' || t === 'sync_recovered' ||
+          t === 'plan_changed' || t === 'system'
+            ? t
+            : 'system'
+        return [{
+          id: r.id,
+          type,
+          title: r.title,
+          body: typeof r.body === 'string' && r.body ? r.body : null,
+          read: r.read === true,
+          createdAt: typeof r.createdAt === 'string' ? r.createdAt : new Date().toISOString(),
+        }]
+      })
+    : []
+
   return {
     todayCost: asFiniteNumber(o.todayCost),
     monthCost: asFiniteNumber(o.monthCost),
@@ -60,6 +125,8 @@ export function parseSpendPayload(raw: unknown): SpendData | null {
     alertStatus,
     lastUpdated,
     lastSuccessfulSyncAt,
+    seat,
+    notifications,
   }
 }
 
